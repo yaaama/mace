@@ -1,0 +1,42 @@
+#!/bin/sh
+
+command="$1"
+
+# Help text to be displayed
+helpFunc()
+{
+printf "Commands: \n
+g - start emacs in gui mode
+t - start emacs in terminal mode
+sr - restarts systemd emacs daemon.
+ds - doom sync."
+}
+
+if [ -z "$1" ]
+ then
+     emacsclient -nc
+fi
+
+
+
+case "$command" in
+     -sr) pkill -f "emacs --daemon"
+         emacs --daemon ;;
+     -ds) doom sync ;;
+     # TODO Have to check if emacs daemon is running
+     -g) emacsclient ;; # This will start the gui emacsclient
+     t) # This will start the terminal client
+          # TODO Have to change this to detect emacs on processes instead
+          clientActive=$(systemctl --user is-active emacs)
+          if [ "$clientActive" = 'active' ]; then
+               emacsclient -nw
+          else
+               emacs -tty
+          fi    ;;
+    -h) helpfunc ;;
+    # TODO Have to make this so that when no argument is passed it will not print the help function.
+    #*) helpFunc ;;
+
+esac
+
+
