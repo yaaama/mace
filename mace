@@ -12,26 +12,43 @@ sr - restarts systemd emacs daemon.
 ds - doom sync."
 }
 
+
+clientActive=$(pgrep -f "emacs --daemon")
+
+
 if [ -z "$1" ]
  then
      emacsclient -nc
 fi
 
+startDaemon()
+{
+emacs --daemon > /dev/null
+}
+
+
+killDaemon()
+{
+pkill -f "emacs --daemon" > /dev/null # This will silence output
+}
+
 
 
 case "$command" in
-     -sr) pkill -f "emacs --daemon"
-         emacs --daemon ;;
-     -ds) doom sync ;;
-     # TODO Have to check if emacs daemon is running
-     -g) emacsclient ;; # This will start the gui emacsclient
-     t) # This will start the terminal client
+     -sr) killDaemon # Will kill and then restart the emacs daemon.
+          startDaemon ;;
+
+     -ds) doom sync ;; # Uses doom sync to sync up packages and configuration files.
+
+     -g)  emacsclient -nc ;; # This will start the gui emacsclient
+
+     -t) # This will start the terminal client
           # TODO Have to change this to detect emacs on processes instead
-          clientActive=$(systemctl --user is-active emacs)
-          if [ "$clientActive" = 'active' ]; then
-               emacsclient -nw
+          if [ -z "$clientActive" ]; then
+                startDaemon
+                emacsclient -nw
           else
-               emacs -tty
+               emacsclient -tty
           fi    ;;
     -h) helpfunc ;;
     # TODO Have to make this so that when no argument is passed it will not print the help function.
