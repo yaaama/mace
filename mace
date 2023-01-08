@@ -1,59 +1,60 @@
 #!/bin/sh
 
 command="$1"
+doompath="$HOME/.emacs.d/bin/doom"
 
 # Help text to be displayed
-helpFunc()
-{
-printf "Commands: \n
-g - start emacs in gui mode
-t - start emacs in terminal mode
-sr - restarts systemd emacs daemon.
-ds - doom sync."
+helpFunc() {
+	printf "Commands: \n
+-g - start emacs in gui mode
+-t - start emacs in terminal mode
+-sr - restarts systemd emacs daemon.
+-ds - doom sync."
 }
 
-
+# Variable that checks for the existence of the emacs daemon
 clientActive=$(pgrep -f "emacs --daemon")
 
+startDaemon() { # Function to start the daemon
+	emacs --daemon >/dev/null
+}
 
-if [ -z "$1" ]
- then
-     emacsclient -nc
+killDaemon() {                        # Function to kill the daemon
+	pkill -f "emacs --daemon" >/dev/null # This will silence output
+}
+
+if [ -z "$clientActive" ]; then # If emacs daemon is not running, then the daemon should start.
+	startDaemon
 fi
 
-startDaemon()
-{
-emacs --daemon > /dev/null
-}
-
-
-killDaemon()
-{
-pkill -f "emacs --daemon" > /dev/null # This will silence output
-}
-
-
+if [ -z "$1" ]; then # Will start the emacsclient if no argument is passed
+	emacsclient -nc
+fi
 
 case "$command" in
-     -sr) killDaemon # Will kill and then restart the emacs daemon.
-          startDaemon ;;
+-sr)
+	killDaemon # Will kill and then restart the emacs daemon.
+	startDaemon
+	notify-send "(っ◔◡◔)っ ♥ EMACS SERVER
+HAS RESTARTED ♥"
+	;;
 
-     -ds) doom sync ;; # Uses doom sync to sync up packages and configuration files.
+-ds) # Uses doom sync to sync up packages and configuration files.
+	$doompath sync ;;
 
-     -g)  emacsclient -nc ;; # This will start the gui emacsclient
+-du) # Upgrades doom packages
+	$doompath upgrade ;;
 
-     -t) # This will start the terminal client
-          # TODO Have to change this to detect emacs on processes instead
-          if [ -z "$clientActive" ]; then
-                startDaemon
-                emacsclient -nw
-          else
-               emacsclient -tty
-          fi    ;;
-    -h) helpfunc ;;
-    # TODO Have to make this so that when no argument is passed it will not print the help function.
-    #*) helpFunc ;;
+-g) # This will start the gui emacsclient
+	emacsclient -nc ;;
+
+-t) # This will start the terminal client
+	emacsclient -nw ;;
+
+-h) # Will print out the available commands
+	helpFunc ;;
+
+*) # Will print out help if any other key is typed
+	helpFunc ;;
 
 esac
-
-
