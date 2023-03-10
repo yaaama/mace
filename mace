@@ -9,7 +9,8 @@ helpFunc() {
 -g - start emacs in gui mode
 -t - start emacs in terminal mode
 -sr - restarts systemd emacs daemon.
--ds - doom sync."
+-ds - doom sync.
+-du - doom upgrade"
 }
 
 # Variable that checks for the existence of the emacs daemon
