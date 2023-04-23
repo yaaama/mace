@@ -3,6 +3,11 @@
 command="$1"
 doompath="$HOME/.emacs.d/bin/doom"
 
+# If doom bin is not in home directory, then it will be in the .config
+[ ! -d "$doompath" ] && doompath="$HOME/.config/emacs/bin/"
+
+#[ ! -d "$doompath" ] && echo "Doom path does not exist!"
+
 # Help text to be displayed
 helpFunc() {
 	printf "Commands: \n
@@ -10,14 +15,15 @@ helpFunc() {
 -t - start emacs in terminal mode
 -sr - restarts systemd emacs daemon.
 -ds - doom sync.
--du - doom upgrade"
+-du - doom upgrade
+-db - doom build"
 }
 
 # Variable that checks for the existence of the emacs daemon
 clientActive=$(pgrep -f "emacs --daemon")
 
 startDaemon() { # Function to start the daemon
-	emacs --daemon >/dev/null
+	emacs --daemon >/dev/null 2>&1
 }
 
 killDaemon() {                        # Function to kill the daemon
@@ -33,18 +39,25 @@ if [ -z "$1" ]; then # Will start the emacsclient if no argument is passed
 fi
 
 case "$command" in
+
 -sr)
 	killDaemon # Will kill and then restart the emacs daemon.
 	startDaemon
 	notify-send "(っ◔◡◔)っ ♥ EMACS SERVER
-HAS RESTARTED ♥"
+	HAS RESTARTED ♥"
 	;;
+
+-sk) killDaemon ;;
 
 -ds) # Uses doom sync to sync up packages and configuration files.
 	$doompath sync ;;
 
 -du) # Upgrades doom packages
 	$doompath upgrade ;;
+
+-db)
+	$doompath build
+	;;
 
 -g) # This will start the gui emacsclient
 	emacsclient -nc ;;
@@ -57,5 +70,4 @@ HAS RESTARTED ♥"
 
 *) # Will print out help if any other key is typed
 	helpFunc ;;
-
 esac
