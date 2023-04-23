@@ -1,7 +1,7 @@
 * mace
 
 *mace* is a simple shell script for interacting with doom emacs, emacsclient and the emacs daemon.
-_
+
 I will add to this script when I need to, but it will remain a simple program.
 
 
