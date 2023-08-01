@@ -1,30 +1,27 @@
 #!/bin/sh
 
 command="$1"
-doompath="$HOME/.emacs.d/bin/doom"
+doompath="$HOME/.config/emacs/bin/doom"
 
 # Help text to be displayed
-helpFunc() {
-	printf "Commands: \n
--g - start emacs in gui mode
--t - start emacs in terminal mode
--sr - restarts systemd emacs daemon.
--ds - doom sync.
--du - doom upgrade"
+print_help() {
+	printf "Commands:\n -g \t start emacs in gui mode\n -t \t start emacs in terminal mode\n -sr \t restarts the emacs server daemon.\n -deb \t start emacs in the debugger mode\n"
+	printf " -ds \t doom sync.\n -du \t doom upgrade\n -db \t doom build\n -dp \t doom purge\n -dd \t doom doc\n"
 }
 
 # Variable that checks for the existence of the emacs daemon
 clientActive=$(pgrep -f "emacs --daemon")
 
-startDaemon() { # Function to start the daemon
+start_daemon() { # function to start the daemon
 	emacs --daemon >/dev/null
 }
 
-killDaemon() {                        # Function to kill the daemon
+kill_daemon() {                       # Function to kill the daemon
 	pkill -f "emacs --daemon" >/dev/null # This will silence output
 }
 
 if [ -z "$clientActive" ]; then # If emacs daemon is not running, then the daemon should start.
+	notify-send "Emacs daemon starting..."
 	startDaemon
 fi
 
@@ -32,30 +29,41 @@ if [ -z "$1" ]; then # Will start the emacsclient if no argument is passed
 	emacsclient -nc
 fi
 
-case "$command" in
--sr)
-	killDaemon # Will kill and then restart the emacs daemon.
-	startDaemon
+restart_server() {
+	kill_daemon # Will kill and then restart the emacs daemon.
+	start_daemon
 	notify-send "(っ◔◡◔)っ ♥ EMACS SERVER
 HAS RESTARTED ♥"
-	;;
 
--ds) # Uses doom sync to sync up packages and configuration files.
-	$doompath sync ;;
+}
 
--du) # Upgrades doom packages
-	$doompath upgrade ;;
+case "$command" in
+	-sr) restart_server ;;
+	-g) # This will start the gui emacsclient
+		emacsclient -nc ;;
+	-t) # This will start the terminal client
+		emacsclient -nw ;;
+	-h) # Will print out the available commands
+		print_help ;;
+	-deb)
+		emacs --debug-init
+		;;
 
--g) # This will start the gui emacsclient
-	emacsclient -nc ;;
+	-ds) # Uses doom sync to sync up packages and configuration files.
+		$doompath sync ;;
+	-du) # Upgrades doom packages
+		$doompath upgrade ;;
+	-db)
+		$doompath build
+		;;
+	-dp)
+		$doompath purge
+		;;
+	-dd)
+		$doompath doctor
+		;;
 
--t) # This will start the terminal client
-	emacsclient -nw ;;
-
--h) # Will print out the available commands
-	helpFunc ;;
-
-*) # Will print out help if any other key is typed
-	helpFunc ;;
+	*) # Will print out help if any other key is typed
+		print_help ;;
 
 esac
