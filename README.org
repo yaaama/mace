@@ -15,18 +15,15 @@ Please note that you will need dunst in order to receive a notification for when
 
 * Options
 
-Execute =mace -h= to get a list of options.
+- Execute =mace -h= to get a list of options.
 
-=-sr=   Restarts emacs daemon and notifies when complete.
-
-=-du=   Alias for =doom upgrade=.
-
-=-ds=   Alias for =doom sync=
-
-=-t=    Opens emacs in terminal mode.
-
-=-g=    Opens emacs in GUI mode.
-
-=-db=   Alias for =doom build=
-
-=-h=    Prints out available commands.
+- =-sr=   Restarts emacs daemon and notifies when complete.
+- =-t=    Opens emacs in terminal mode.
+- =-g=    Opens emacs in GUI mode.
+- =-h=    Prints out available commands.
+- =-deb= Starts emacs with =--debug-init= flag.
+- =-du=   Alias for =doom upgrade=.
+- =-ds=   Alias for =doom sync=.
+- =-db=   Alias for =doom build=.
+- =-dp= Alias for =doom purge=.
+- =-dd= Alias for =doom doctor=.

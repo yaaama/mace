@@ -6,7 +6,7 @@ doompath="$HOME/.config/emacs/bin/doom"
 # Help text to be displayed
 print_help() {
 	printf "Commands:\n -g \t start emacs in gui mode\n -t \t start emacs in terminal mode\n -sr \t restarts the emacs server daemon.\n -deb \t start emacs in the debugger mode\n"
-	printf " -ds \t doom sync.\n -du \t doom upgrade\n -db \t doom build\n -dp \t doom purge\n -dd \t doom doc\n"
+	printf " -ds \t doom sync.\n -du \t doom upgrade\n -db \t doom build\n -dp \t doom purge\n -dd \t doom doctor\n"
 }
 
 # Variable that checks for the existence of the emacs daemon
