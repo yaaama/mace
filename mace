@@ -5,7 +5,7 @@ doompath="$HOME/.config/emacs/bin/doom"
 
 # Help text to be displayed
 print_help() {
-	printf "Commands:\n -g \t start emacs in gui mode\n -t \t start emacs in terminal mode\n -sr \t restarts the emacs server daemon.\n -deb \t start emacs in the debugger mode\n"
+	printf "Commands:\n -g \t start emacs in gui mode\n -t \t start emacs in terminal mode\n -sr \t restarts the emacs server daemon.\n -deb \t start emacs in the debugger mode\n "
 	printf " -ds \t doom sync.\n -du \t doom upgrade\n -db \t doom build\n -dp \t doom purge\n -dd \t doom doctor\n"
 }
 
@@ -13,16 +13,17 @@ print_help() {
 clientActive=$(pgrep -f "emacs --daemon")
 
 start_daemon() { # function to start the daemon
-	emacs --daemon >/dev/null
+	emacs --daemon >/dev/null && notify-send "Emacs daemon started!"
 }
 
-kill_daemon() {                       # Function to kill the daemon
-	pkill -f "emacs --daemon" >/dev/null # This will silence output
+kill_daemon() { # Function to kill the daemon
+	pkill -f "emacs --daemon" >/dev/null &&
+		notify-send "Killed emacs daemon."
 }
 
 if [ -z "$clientActive" ]; then # If emacs daemon is not running, then the daemon should start.
 	notify-send "Emacs daemon starting..."
-	startDaemon
+	start_daemon
 fi
 
 if [ -z "$1" ]; then # Will start the emacsclient if no argument is passed
@@ -38,13 +39,14 @@ HAS RESTARTED ♥"
 }
 
 case "$command" in
-	-sr) restart_server ;;
-	-g) # This will start the gui emacsclient
+	-h) # Will print out the available commands
+		print_help ;;
+	-sr) restart_server ;; # Restarts the server daemon
+	-sk) kill_daemon ;;    # Kills the server daemon
+	-g)                    # This will start the gui emacsclient
 		emacsclient -nc ;;
 	-t) # This will start the terminal client
 		emacsclient -nw ;;
-	-h) # Will print out the available commands
-		print_help ;;
 	-deb)
 		emacs --debug-init
 		;;
