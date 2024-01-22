@@ -1,14 +1,22 @@
 #!/bin/sh
 
 command="$1"
-doompath="$HOME/.config/emacs/bin/doom"
 
-# If mace was run without any arguments, open up a regular emacs instance
-if [ -z "$1" ]; then
-	emacs
+# Check for doom cli existence
+command -v doom >/dev/null 2>&1
+found=$?
+
+# If there is no 'doom' in the path.
+if [ $found -eq 1 ]; then
+	printf "[mace] Error! 'doom' cli not found in PATH.\n"
+	exit 1
 fi
 
-
+# Checks for daemon
+is_daemon_running() {
+	pgrep -f "emacs --daemon" >/dev/null 2>&1
+	return $?
+}
 
 # Help text to be displayed
 print_help() {
@@ -29,90 +37,83 @@ print_help() {
 	# Doom commands
 	printf "DOOM Commands:\n"
 	printf "  %-12s%s\n" "-ds" "Alias for \"doom sync\"."
-	printf "  %-12s%s\n" "-db" "Alias for \"doom build\". This will rebuild and re-byte compile all packages."
+	printf "  %-12s%s\n" "-dsu" "Alias for \"doom sync -u\". Use this if you change an installed package recipe."
+	printf "  %-12s%s\n" "-db" "Alias for \"doom build\". This will rebuild and do a fresh byte-compile of all packages"
 	printf "  %-12s%s\n" "-dp" "Alias for \"doom purge\"."
 	printf "  %-12s%s\n" "-du" "Alias for \"doom upgrade\"."
+	printf "  %-12s%s\n" "-dc" "Alias for \"doom clean\"."
 	printf "  %-12s%s\n" "-dd" "Alias for \"doom doctor\"."
 
 }
-
-# Variable that checks for the existence of the emacs daemon
-clientActive=$(pgrep -f "emacs --daemon")
-instanceActive=$(pgrep -f "emacs")
-
 
 ##############
 # # Commands #
 ##############
 
-# `-a` checks for whether the daemon is active
-is_server_active() {
-
-	if [ -z "$clientActive" ]; then
-		echo "Emacs daemon is not active."
-	else
-		echo "Emacs daemon is active."
-	fi
-
-}
-
 # Starts a daemon
-start_daemon() { # function to start the daemon
-	if [ -z "$clientActive" ] && [ -z "$instanceActive" ]; then
-		emacs --daemon >/dev/null 2>&1
-		echo "Emacs daemon started!"
-	else
-		echo "Daemon or instance is already running."
-	fi
+start_daemon() {
+	printf "[mace] Starting up daemon.\n"
+	emacs --daemon
+	printf "[mace] Daemon started.\n"
+	notify-send " daemon started!"
 }
 
 # Kills a daemon if it exists
-kill_daemon() { # Function to kill the daemon
-
-	if [ -z "$clientActive" ]; then
-		echo "Cannot kill daemon as none are running."
+kill_daemon() {
+	if is_daemon_running; then
+		emacsclient -e "(save-buffers-kill-emacs)"
+		printf "[mace] Killed emacs daemon.\n"
 	else
-	pkill -f "emacs --daemon" >/dev/null &&
-	echo "Killed emacs daemon."
+		printf "[mace] No active daemons to kill.\n"
 	fi
 }
 
+# Runs the emacs client
 run_eclient() {
-	if [ -z "$clientActive" ]; then
-		notify-send "Emacs daemon starting..."
+	emacsclient -nc || notify-send -a=mace -u=normal "Failed to create new  frame! :(" && exit 1
+	notify-send -a=mace -u=normal "New  client started!"
+}
+
+# Will kill and then restart the emacs daemon.
+restart_daemon() {
+	kill_daemon &&
 		start_daemon
-	fi
-	notify-send "Opening emacsclient!"
-	emacsclient -nc
+	notify-send -a=mace -u=normal "New daemon started!"
 }
 
-
-restart_server() {
-	kill_daemon  && # Will kill and then restart the emacs daemon.
-	start_daemon &&
-	notify-send "Emacs server has restarted!"
-}
-
-
-
-
-
+if [ -z "$1" ]; then
+	run_eclient
+	exit 0
+fi
 
 case "$command" in
-	-h) # Will print out the available commands
-		print_help ;;
-	-a) is_server_active ;; # Checks for whether server is active
-	-s) start_daemon ;; # Starts a server
-	-sr) restart_server ;; # Restarts the server daemon
-	-sk) kill_daemon ;;    # Kills the server daemon
-	-g) run_eclient ;; # Starts Emacs client in GUI mode
-	-t) emacsclient -nw ;; # This will start the terminal client
+	# Will print out the available commands
+	-h)
+		print_help
+		;;
+
+	# -a Checks for whether server is active
+	-a)
+		if is_daemon_running; then
+			printf "[mace] Emacs daemon is currently ACTIVE.\n"
+		else
+			printf "[mace] Emacs daemon is not currently running.\n"
+		fi
+		;;
+	-s) start_daemon ;;         # Starts a server
+	-sr) restart_daemon ;;      # Restarts the server daemon
+	-sk) kill_daemon ;;         # Kills the server daemon
+	-g) run_eclient ;;          # Starts Emacs client in GUI mode
+	-t) emacsclient -nw ;;      # This will start the terminal client
 	-deb) emacs --debug-init ;; # Starts emacs in debug mode
-	-ds) $doompath sync ;;
-	-du) $doompath upgrade ;;
-	-db) $doompath build ;;
-	-dp) $doompath purge ;;
-	-dd) $doompath doctor ;;
+	# Doom Aliases
+	-ds) doom sync ;;
+	-dsu) doom sync -u ;;
+	-du) doom upgrade ;;
+	-db) doom build ;;
+	-dp) doom purge ;;
+	-dc) doom clean ;;
+	-dd) doom doctor ;;
 
 	*) # Will print out help if any other key is typed
 		print_help ;;
