@@ -18,6 +18,57 @@ is_daemon_running() {
 	return $?
 }
 
+
+
+##############
+# # Commands #
+##############
+
+# Starts a daemon
+start_daemon() {
+	printf "[mace] Starting up daemon.\n"
+	emacs --daemon
+	printf "[mace] Daemon started.\n"
+	notify-send "emacs daemon started!"
+}
+
+# Kills a daemon if it exists
+kill_daemon() {
+	if is_daemon_running; then
+		# Don't request for confirmation
+		emacsclient -e "(setq confirm-kill-emacs nil)"
+		# Save all buffers by default
+		emacsclient -e "(save-buffers-kill-emacs t nil)"
+		printf "[mace] Killed emacs daemon.\n"
+	else
+		printf "[mace] No active daemons to kill.\n"
+	fi
+}
+
+# Runs the emacs client
+run_eclient() {
+	emacsclient -c -w 5 || notify-send -a=mace -u=normal "[mace] Failed to create new frame! :(" && exit 1
+	notify-send -a=mace -u=normal "[mace] Opening emacs client!"
+}
+
+# Will kill and then restart the emacs daemon.
+restart_daemon() {
+	kill_daemon &&
+		start_daemon
+	notify-send -a=mace -u=normal "[mace] Emacs daemon started!"
+}
+
+
+if [ -z "$command" ] && ! is_daemon_running ; then
+	start_daemon
+	run_eclient
+
+fi
+
+
+
+
+
 # Help text to be displayed
 print_help() {
 
@@ -46,40 +97,6 @@ print_help() {
 
 }
 
-##############
-# # Commands #
-##############
-
-# Starts a daemon
-start_daemon() {
-	printf "[mace] Starting up daemon.\n"
-	emacs --daemon
-	printf "[mace] Daemon started.\n"
-	notify-send " daemon started!"
-}
-
-# Kills a daemon if it exists
-kill_daemon() {
-	if is_daemon_running; then
-		emacsclient -e "(save-buffers-kill-emacs)"
-		printf "[mace] Killed emacs daemon.\n"
-	else
-		printf "[mace] No active daemons to kill.\n"
-	fi
-}
-
-# Runs the emacs client
-run_eclient() {
-	emacsclient -nc || notify-send -a=mace -u=normal "Failed to create new  frame! :(" && exit 1
-	notify-send -a=mace -u=normal "New  client started!"
-}
-
-# Will kill and then restart the emacs daemon.
-restart_daemon() {
-	kill_daemon &&
-		start_daemon
-	notify-send -a=mace -u=normal "New daemon started!"
-}
 
 if [ -z "$1" ]; then
 	run_eclient
