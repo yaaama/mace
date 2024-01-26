@@ -17,7 +17,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 command="$1"
 
 # Check for doom cli existence
@@ -35,8 +34,6 @@ is_daemon_running() {
 	pgrep -f "emacs --daemon" >/dev/null 2>&1
 	return $?
 }
-
-
 
 ##############
 # # Commands #
@@ -77,16 +74,11 @@ restart_daemon() {
 	notify-send "[mace] Emacs daemon started!"
 }
 
-
-if [ -z "$command" ] && ! is_daemon_running ; then
+if [ -z "$command" ] && ! is_daemon_running; then
 	start_daemon
 	run_eclient
 
 fi
-
-
-
-
 
 # Help text to be displayed
 print_help() {
@@ -100,12 +92,14 @@ print_help() {
 	printf "  %-12s%s\n" "-sr" "Restart Emacs daemon."
 	printf "  %-12s%s\n" "-sk" "Kill any Emacs daemon instances."
 
+
 	printf "  %-12s%s\n" "-g" "Open Emacs in GUI mode."
 	printf "  %-12s%s\n" "-t" "Open Emacs in the current terminal."
 	printf "  %-12s%s\n" "-deb" "Alias for \"emacs --debug-init\"."
 
 	# Doom commands
 	printf "DOOM Commands:\n"
+	printf "  %-12s%s\n" "-c" "Open Doom capture mode in new frame."
 	printf "  %-12s%s\n" "-ds" "Alias for \"doom sync\"."
 	printf "  %-12s%s\n" "-dsu" "Alias for \"doom sync -u\". Use this if you change an installed package recipe."
 	printf "  %-12s%s\n" "-db" "Alias for \"doom build\". This will rebuild and do a fresh byte-compile of all packages"
@@ -116,11 +110,14 @@ print_help() {
 
 }
 
-
 if [ -z "$1" ]; then
 	run_eclient
 	exit 0
 fi
+
+doom_capture() {
+	emacsclient -e "(+org-capture/open-frame)"
+}
 
 case "$command" in
 	# Will print out the available commands
@@ -136,6 +133,7 @@ case "$command" in
 			printf "[mace] Emacs daemon is not currently running.\n"
 		fi
 		;;
+	-c) doom_capture ;;         # Opens doom capture window
 	-s) start_daemon ;;         # Starts a server
 	-sr) restart_daemon ;;      # Restarts the server daemon
 	-sk) kill_daemon ;;         # Kills the server daemon
