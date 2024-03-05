@@ -43,11 +43,11 @@ is_daemon_running() {
 
 # Starts a daemon
 start_daemon() {
-	notify-send "[mace] Starting up emacs daemon..."
+	notify-send -a "mace" "Starting up emacs daemon..."
 	printf "[mace] Starting up daemon.\n"
 	emacs --daemon
 	printf "[mace] Daemon started.\n"
-	notify-send "emacs daemon started!"
+	notify-send -a "mace" "emacs daemon started!"
 }
 
 # Kills a daemon if it exists
@@ -66,14 +66,15 @@ kill_daemon() {
 # Runs the emacs client
 run_eclient() {
 	emacsclient -c -n -a="" || notify-send "[mace] Failed to create new frame! :(" && exit 1
-	notify-send "[mace] Opening emacs client!"
+	notify-send -a "mace" "Opening emacs client!"
+
 }
 
 # Will kill and then restart the emacs daemon.
 restart_daemon() {
 	kill_daemon &&
 		start_daemon
-	notify-send "[mace] Emacs daemon started!"
+	notify-send -a "mace" "Emacs daemon started!"
 }
 
 if [ -z "$command" ] && ! is_daemon_running; then
