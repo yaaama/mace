@@ -1,5 +1,7 @@
 #!/usr/bin/env sh
 
+# TODO Check for duplicate processes
+
 # // mace
 # // ~~~~
 # Copyright (C) 2024 Sau P
@@ -29,9 +31,9 @@ if [ $found -eq 1 ]; then
 	exit 1
 fi
 
-# Checks for daemon
+# Checks for running instance
 is_daemon_running() {
-	pgrep -f "emacs --daemon" >/dev/null 2>&1
+	pgrep "emacs" >/dev/null 2>&1
 	return $?
 }
 
@@ -63,7 +65,7 @@ kill_daemon() {
 
 # Runs the emacs client
 run_eclient() {
-	emacsclient -c -w 5 || notify-send "[mace] Failed to create new frame! :(" && exit 1
+	emacsclient -c -n -a="" || notify-send "[mace] Failed to create new frame! :(" && exit 1
 	notify-send "[mace] Opening emacs client!"
 }
 
@@ -92,7 +94,6 @@ print_help() {
 	printf "  %-12s%s\n" "-sr" "Restart Emacs daemon."
 	printf "  %-12s%s\n" "-sk" "Kill any Emacs daemon instances."
 
-
 	printf "  %-12s%s\n" "-g" "Open Emacs in GUI mode."
 	printf "  %-12s%s\n" "-t" "Open Emacs in the current terminal."
 	printf "  %-12s%s\n" "-deb" "Alias for \"emacs --debug-init\"."
@@ -116,7 +117,7 @@ if [ -z "$1" ]; then
 fi
 
 doom_capture() {
-	emacsclient -e "(+org-capture/open-frame)"
+	emacsclient -e "(+org-capture/open-frame)" || echo "Could not capture?"
 }
 
 case "$command" in
