@@ -134,13 +134,13 @@ case "$command" in
 			printf "[mace] Emacs daemon is not currently running.\n"
 		fi
 		;;
-	-c) doom_capture ;;         # Opens doom capture window
-	-s) start_daemon ;;         # Starts a server
-	-sr) restart_daemon ;;      # Restarts the server daemon
-	-sk) kill_daemon ;;         # Kills the server daemon
-	-g) run_eclient ;;          # Starts Emacs client in GUI mode
-	-t) emacsclient -nw ;;      # This will start the terminal client
-	-deb) emacs --debug-init ;; # Starts emacs in debug mode
+	-c) doom_capture ;;                   # Opens doom capture window
+	-s) start_daemon ;;                   # Starts a server
+	-sr) restart_daemon ;;                # Restarts the server daemon
+	-sk) kill_daemon ;;                   # Kills the server daemon
+	-g) run_eclient ;;                    # Starts Emacs client in GUI mode
+	-t) emacsclient -nw ;;                # This will start the terminal client
+	-deb) setsid -f emacs --debug-init ;; # Starts emacs in debug mode
 	# Doom Aliases
 	-ds) doom sync ;;
 	-dsu) doom sync -u ;;
