@@ -119,7 +119,8 @@ if [ -z "$1" ]; then
 fi
 
 doom_capture() {
-	emacsclient -u -a="" -e "(+org-capture/open-frame)" || echo "Could not capture?"
+	org-capture || notify-send "Something went wrong..."
+	exit 0
 }
 
 case "$command" in
