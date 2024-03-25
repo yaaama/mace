@@ -104,11 +104,12 @@ print_help() {
 	printf "  %-12s%s\n" "-c" "Open Doom capture mode in new frame."
 	printf "  %-12s%s\n" "-ds" "Alias for \"doom sync\"."
 	printf "  %-12s%s\n" "-dsu" "Alias for \"doom sync -u\". Use this if you change an installed package recipe."
-	printf "  %-12s%s\n" "-db" "Alias for \"doom build\". This will rebuild and do a fresh byte-compile of all packages"
-	printf "  %-12s%s\n" "-dp" "Alias for \"doom purge\"."
 	printf "  %-12s%s\n" "-du" "Alias for \"doom upgrade\"."
-	printf "  %-12s%s\n" "-dc" "Alias for \"doom clean\"."
 	printf "  %-12s%s\n" "-dd" "Alias for \"doom doctor\"."
+	printf "  %-12s%s\n" "-dc" "Alias for \"doom gc\". Has replaced the older purge command since 24/03/2024"
+	# printf "  %-12s%s\n" "-db" "Alias for \"doom build\". This will rebuild and do a fresh byte-compile of all packages"
+	# printf "  %-12s%s\n" "-dp" "Alias for \"doom purge\"."
+	# printf "  %-12s%s\n" "-dc" "Alias for \"doom clean\"."
 
 }
 
@@ -146,10 +147,11 @@ case "$command" in
 	-ds) doom sync ;;
 	-dsu) doom sync -u ;;
 	-du) doom upgrade ;;
-	-db) doom build ;;
-	-dp) doom purge ;;
-	-dc) doom clean ;;
+	-dc) doom gc ;;
 	-dd) doom doctor ;;
+	# -db) doom build ;; DEPRECATED
+	# -dp) doom purge ;; DEPRECATED
+	# -dc) doom clean ;; DEPRECATED
 
 	*) # Will print out help if any other key is typed
 		print_help ;;
