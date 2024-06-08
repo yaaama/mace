@@ -20,14 +20,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # set -xeu
-set -xeu
+# set -xeu
 
 # running=0
 
 _help() {
     echo "mace [optional]
 -h      Show this help message.
--a      Start emacs daemon
+-s      Start emacs daemon
+-a      Check for active emacs processes.
 -sr     Restart Emacs daemon.
 -sk     Kill any Emacs daemon instances.
 -g      Open Emacs in GUI mode.
@@ -106,7 +107,11 @@ emacs_running() {
 
 # Starts a daemon
 start_daemon() {
-    args_to_add="$args_to_add"+' --alternate-editor= '
+    if emacs_running; then
+        print_err "An emacs client is already running."
+        exit 1
+    fi
+    emacs --daemon
 }
 
 start_in_terminal() {
@@ -114,8 +119,11 @@ start_in_terminal() {
 }
 
 start_if_no_args_or_display() {
+    if [ -n "$1" ]; then
+        return 1
+    fi
     # If no args or no display variable assume terminal start
-    if [ -z "$DISPLAY" ] || "$TMUX"; then
+    if [ -z "$DISPLAY" ] || [ -n "$TMUX" ]; then
         # If no emacs running, then start daemon up
         if ! emacs_running; then
             echo "Launching Emacs daemon"
@@ -145,6 +153,15 @@ kill_daemon() {
     fi
 }
 
+status_daemon() {
+    if emacs_running; then
+        printf "[mace] Emacs daemon is ACTIVE.\n"
+    else
+        printf "[mace] Emacs daemon is not currently running.\n"
+    fi
+    exit 0
+}
+
 # Runs the emacs client
 run_eclient() {
     args_to_add="-c -n --alternate-editor= "
@@ -155,11 +172,12 @@ run_eclient() {
 run_gui() {
     cmd='emacsclient -c -n --alternate-editor= '
 
-    if [ "$1" ]; then
+    if [ -n "$1" ]; then
         $cmd "$@"
     fi
-    current_dir="$(pwd)"
-    $cmd "$current_dir"
+    # current_dir="$(pwd)"
+    # $cmd "$current_dir"
+    $cmd
 }
 
 # Will kill and then restart the emacs daemon.
@@ -178,17 +196,9 @@ command=$1
 
 case "$command" in
     # Will print out the available commands
-    -h) help_ ;;
+    -h) _help ;;
     # -a Checks for whether server is active
-    -a)
-        if emacs_running; then
-            printf "[mace] Emacs daemon is ACTIVE.\n"
-            exit 0
-        else
-            printf "[mace] Emacs daemon is not currently running.\n"
-            exit 1
-        fi
-        ;;
+    -a) status_daemon ;;
     -c) doom_capture ;;                   # Opens doom capture window
     -s) start_daemon ;;                   # Starts a server
     -sr) restart_daemon ;;                # Restarts the server daemon
