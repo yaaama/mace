@@ -19,13 +19,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# set -xeu
+set -xeu
 # set -xeu
 
 # running=0
 
 _help() {
-    echo "mace [optional]
+    echo "mace [subcommand]
 -h      Show this help message.
 -s      Start emacs daemon
 -a      Check for active emacs processes.
@@ -83,6 +83,12 @@ check_depends() {
     fi
 }
 
+
+# Run from terminal: "mace": Should open terminal emacsclient in the current directory
+# Run from lf: "mace $file" should open terminal emacsclient instance with file
+# Run from hotkey bspwm: "mace -g" should open an emacsclient instance, or start one at root dir and open instance
+
+
 # Check the dependencies
 check_depends
 
@@ -91,11 +97,7 @@ arg_term=0
 arg_start_daemon=0
 cmd=""
 
-# If there is no arguments, launch emacsclient!
-if [ "$#" -eq 0 ]; then
-    emacsclient -a="" -nw "$@" 2>/dev/null
-    exit 0
-fi
+server_running=true
 
 # Check if emacs is running currently
 emacs_running() {
@@ -104,6 +106,18 @@ emacs_running() {
     fi
     return 0
 }
+
+if ! emacs_running; then
+    server_running=false
+fi
+
+
+use_gui=true
+# If there is no arguments, launch emacs in the terminal!
+if [ "$#" -lt 1 ]; then
+    emacsclient -nw -a="" "$@" 2>/dev/null
+    exit 0
+fi
 
 # Starts a daemon
 start_daemon() {
@@ -119,18 +133,18 @@ start_in_terminal() {
 }
 
 start_if_no_args_or_display() {
-    if [ -n "$1" ]; then
-        return 1
-    fi
+    # if [ -n "$1" ]; then
+    #     return 1
+    # fi
     # If no args or no display variable assume terminal start
-    if [ -z "$DISPLAY" ] || [ -n "$TMUX" ]; then
+    if [ -z "$DISPLAY" ] || [ -n "${TMUX:-0}" ]; then
         # If no emacs running, then start daemon up
         if ! emacs_running; then
             echo "Launching Emacs daemon"
-            emacsclient -a="" -nw "$@" 2>/dev/null
+            emacsclient -nw -a="" 2>/dev/null
             exit 0
         fi
-        emacsclient -a "" -nc "$@" 2>/dev/null
+        emacsclient -nc -a="" "$@"  2>/dev/null
         exit 0
     fi
 }
@@ -170,7 +184,7 @@ run_eclient() {
 }
 
 run_gui() {
-    cmd='emacsclient -c -n --alternate-editor= '
+    cmd="emacsclient -nc  --alternate-editor=" " "
 
     if [ -n "$1" ]; then
         $cmd "$@"
@@ -179,6 +193,7 @@ run_gui() {
     # current_dir="$(pwd)"
     # $cmd "$current_dir"
     $cmd
+    exit 0
 }
 
 # Will kill and then restart the emacs daemon.
