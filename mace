@@ -1,6 +1,4 @@
-#!/usr/bin/env dash
-
-# TODO Check for duplicate processes
+#!/usr/bin/env bash
 
 # // mace
 # // ~~~~
@@ -19,12 +17,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-set -xeu
-# set -xeu
+set -xeo pipefail
+
+# TODO Rework this script completely!
+# TODO Check for duplicate processes
 
 # running=0
 
-_help() {
+function _help() {
     echo "mace [subcommand]
 -h      Show this help message.
 -s      Start emacs daemon
@@ -45,34 +45,34 @@ _help() {
 }
 
 print_err() {
-    printf "[mace] error: %s\n" "$1"
+    printf "mace:[error]: %s\n" "$1"
 }
 
-command_exists() {
-    if command -v "$1" >/dev/null 2>&1; then
-        return 0
-    else
-        return 1
-    fi
+print_msg() {
+    printf "mace: %s\n" "$1"
 }
 
-emacs_exists() {
-    command_exists "emacs"
-}
+has_cmd_exists=$(command -v cmd-exists.sh || 1)
 
-doom_exists() {
-    command_exists "doom"
-}
+if ! "$has_cmd_exists"; then
+    command_exists() {
+        command -v "$0"
+    }
+else
+    command_exists() {
+        cmd-exists.sh "$0"
+    }
+fi
 
 check_depends() {
     err=0
-    if ! emacs_exists; then
+    if ! command_exists "emacs"; then
         print_err "Emacs does not exist in your path."
         err=1
     fi
 
     # If there is no 'doom' in the path.
-    if ! doom_exists; then
+    if ! command_exists "doom"; then
         print_err "Doom does not exist in your path."
         err=1
     fi
@@ -83,50 +83,137 @@ check_depends() {
     fi
 }
 
+# Check if emacs is running currently
+check_active_emacs() {
+    if ! pidof -q emacs; then
+        return 1
+    fi
+    return 0
+}
 
-# Run from terminal: "mace": Should open terminal emacsclient in the current directory
-# Run from lf: "mace $file" should open terminal emacsclient instance with file
-# Run from hotkey bspwm: "mace -g" should open an emacsclient instance, or start one at root dir and open instance
-
-
-# Check the dependencies
+# Check the dependencies first.
 check_depends
+
+# Utilities ###################################################################
+
+# Kills a daemon if it exists
+kill_daemon() {
+    if check_active_emacs; then
+        # Save all buffers
+        emacsclient -e '(save-some-buffers 1 nil)' 2>/dev/null || print_err "Could not save buffers."
+        emacsclient -e "(kill-emacs)" 2>/dev/null || print_err "Could not kill daemon."
+        return 0
+    fi
+    print_err "No daemon running."
+}
+
+# Starts a daemon
+start_daemon() {
+    if check_active_emacs; then
+        print_err "A daemon is already running."
+        exit 1
+    fi
+    print_msg "Starting daemon."
+    emacs --daemon
+
+    print_err "Could not start Emacs?..."
+    print_msg "Finished launching daemon."
+    exit 0
+}
+
+options=""
+
+if ! options=$(getopt -o hsasrskgtdebpkcdsdsuducc --long help,start,active,restart,kill,gui,terminal,debug,pkill,capture,doomsync,doomsyncu,upgrade,doctor,gc -- "$@"); then
+    _help
+    exit 1
+fi
+
+eval set -- "$options"
+
+while true; do
+    case "$1" in
+        -h | --help)
+            _help
+            exit 0
+            ;;
+        -s | --start)
+            start_daemon
+            exit 0
+            ;;
+        -a | --active)
+            check_active_emacs
+            exit 0
+            ;;
+        -sr | --restart)
+            restart_daemon
+            exit 0
+            ;;
+        -sk | --kill)
+            kill_daemon
+            exit 0
+            ;;
+        -g | --gui)
+            open_emacs_gui
+            exit 0
+            ;;
+        -t | --terminal)
+            open_emacs_terminal
+            exit 0
+            ;;
+        -deb | --debug)
+            emacs_debug_init
+            exit 0
+            ;;
+        -pk | --pkill)
+            pkill_emacs
+            exit 0
+            ;;
+        -c | --capture)
+            doom_capture
+            exit 0
+            ;;
+        -ds | --doomsync)
+            doom_sync
+            exit 0
+            ;;
+        -dsu | --doomsyncu)
+            doom_sync_update
+            exit 0
+            ;;
+        -du | --upgrade)
+            doom_upgrade
+            exit 0
+            ;;
+        -dd | --doctor)
+            doom_doctor
+            exit 0
+            ;;
+        -dc | --gc)
+            doom_gc
+            exit 0
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            echo "Unknown option: $1"
+            _help
+            exit 1
+            ;;
+    esac
+done
+
+# If no arguments are provided, show the help message
+_help
+exit 0
 
 args_to_add=" "
 arg_term=0
 arg_start_daemon=0
 cmd=""
 
-server_running=true
-
-# Check if emacs is running currently
-emacs_running() {
-    if ! pidof emacs; then
-        return 1
-    fi
-    return 0
-}
-
-if ! emacs_running; then
-    server_running=false
-fi
-
-
 use_gui=true
-# If there is no arguments, launch emacs in the terminal!
-if [ "$#" -lt 1 ]; then
-    emacsclient -nw -a="" "$@" 2>/dev/null
-    exit 0
-fi
-
-# Starts a daemon
-start_daemon() {
-    if emacs_running; then
-        print_err "An emacs client is already running."
-        exit 1
-    fi
-    emacs --daemon
-}
 
 start_in_terminal() {
     args_to_add="$args_to_add -t"
@@ -139,12 +226,12 @@ start_if_no_args_or_display() {
     # If no args or no display variable assume terminal start
     if [ -z "$DISPLAY" ] || [ -n "${TMUX:-0}" ]; then
         # If no emacs running, then start daemon up
-        if ! emacs_running; then
+        if ! check_active_emacs; then
             echo "Launching Emacs daemon"
             emacsclient -nw -a="" 2>/dev/null
             exit 0
         fi
-        emacsclient -nc -a="" "$@"  2>/dev/null
+        emacsclient -nc -a="" 2>/dev/null
         exit 0
     fi
 }
@@ -154,21 +241,8 @@ start_if_no_args_or_display "$@"
 
 # Helper functions
 
-# Kills a daemon if it exists
-kill_daemon() {
-    if emacs_running; then
-        # Don't request for confirmation
-        emacsclient -e "(setq confirm-kill-emacs nil)" 2>/dev/null
-        # Save all buffers and kill
-        emacsclient -e "(save-buffers-kill-emacs t nil)" 2>/dev/null
-        printf "[mace] Killed emacs daemon.\n"
-    else
-        printf "[mace] No active daemons to kill.\n"
-    fi
-}
-
 status_daemon() {
-    if emacs_running; then
+    if check_active_emacs; then
         printf "[mace] Emacs daemon is ACTIVE.\n"
     else
         printf "[mace] Emacs daemon is not currently running.\n"
@@ -187,7 +261,7 @@ run_gui() {
     cmd="emacsclient -nc  --alternate-editor=" " "
 
     if [ -n "$1" ]; then
-        $cmd "$@"
+        $cmd
         exit 0
     fi
     # current_dir="$(pwd)"
@@ -208,26 +282,8 @@ doom_capture() {
     exit 0
 }
 
-command=$1
-
-case "$command" in
-    # Will print out the available commands
-    -h) _help ;;
-    # -a Checks for whether server is active
-    -a) status_daemon ;;
-    -c) doom_capture ;;                   # Opens doom capture window
-    -s) start_daemon ;;                   # Starts a server
-    -sr) restart_daemon ;;                # Restarts the server daemon
-    -sk) kill_daemon ;;                   # Kills the server daemon
-    -g) run_gui "$@" ;;                   # Starts Emacs client in GUI mode
-    -t) emacsclient -nw "$@" ;;           # This will start the terminal client
-    -deb) setsid -f emacs --debug-init ;; # Starts emacs in debug mode
-    # Doom Aliases
-    -ds) doom sync ;;
-    -dsu) doom sync -u ;;
-    -du) doom upgrade ;;
-    -dc) doom gc ;;
-    -dd) doom doctor ;;
-    # Will print out help if any other key is typed
-    *) _help ;;
-esac
+# If there is no arguments, launch emacs in the terminal!
+if [ "$#" -lt 1 ]; then
+    emacsclient -nw -a="" 2>/dev/null
+    exit 0
+fi
