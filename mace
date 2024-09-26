@@ -17,257 +17,179 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-set -xeo pipefail
+set -euo pipefail
 
-# TODO Rework this script completely!
-# TODO Check for duplicate processes
+# Help message
+_help() {
+    cat <<EOF
+mace [subcommand]
 
-# running=0
+-h, --help      Show this help message.
+-S, --start     Start Emacs daemon.
+-A, --active    Check for active Emacs processes.
+-R, --restart   Restart Emacs daemon.
+-K, --kill      Kill any Emacs daemon instances.
+-G, --gui       Open Emacs in GUI mode.
+-T, --terminal  Open Emacs in the current terminal.
+-D, --debug     Alias for 'emacs --debug-init'.
+-p, --pkill     Alias for 'pkill -USR2 emacs' Allows for debugging Emacs while
+it is frozen.
 
-function _help() {
-    echo "mace [subcommand]
--h      Show this help message.
--s      Start emacs daemon
--a      Check for active emacs processes.
--sr     Restart Emacs daemon.
--sk     Kill any Emacs daemon instances.
--g      Open Emacs in GUI mode.
--t      Open Emacs in the current terminal.
--deb    Alias for \`emacs --debug-init\`.
--pk     Alias for \`pkill -USR2 emacs\`.
--c      Open Doom capture mode in new frame.
--ds     \`doom sync\`.
--dsu    \`doom sync -u\` Use this if you change an installed package recipe.
--du     \`doom upgrade\`.
--dd     \`doom doctor\`.
--dc     \`doom gc\`. Has replaced the older \`doom purge\` command since 24/03/2024.
-"
+-C, --capture   Open Doom capture mode in new frame.
+-ds             'doom sync'.
+-dsu            'doom sync -u'. Use this if you change an installed package recipe.
+-du             'doom upgrade'.
+-dd             'doom doctor'.
+-dgc            'doom gc'.
+EOF
 }
 
+# parent_proc=$(ps -o comm= $PPID)
+
+
+# Error and message printing
 print_err() {
-    printf "mace:[error]: %s\n" "$1"
+    printf "mace: [error]: %s\n" "$1" >&2 # Print errors to stderr
 }
 
 print_msg() {
     printf "mace: %s\n" "$1"
 }
 
-has_cmd_exists=$(command -v cmd-exists.sh || 1)
-
-if ! "$has_cmd_exists"; then
-    command_exists() {
-        command -v "$0"
-    }
-else
-    command_exists() {
-        cmd-exists.sh "$0"
-    }
-fi
-
+# Dependency checking
 check_depends() {
-    err=0
-    if ! command_exists "emacs"; then
-        print_err "Emacs does not exist in your path."
-        err=1
-    fi
-
-    # If there is no 'doom' in the path.
-    if ! command_exists "doom"; then
-        print_err "Doom does not exist in your path."
-        err=1
-    fi
-
-    # Exit if error
-    if [ "$err" -eq 1 ]; then
-        exit 1
-    fi
+    for cmd in emacs doom; do
+        if ! command -v "$cmd" &>/dev/null; then
+            print_err "$cmd does not exist in your path."
+            exit 1
+        fi
+    done
 }
 
-# Check if emacs is running currently
+# Emacs status checking
 check_active_emacs() {
-    if ! pidof -q emacs; then
-        return 1
-    fi
-    return 0
+    pidof -q emacs &>/dev/null
 }
 
-# Check the dependencies first.
-check_depends
-
-# Utilities ###################################################################
-
-# Kills a daemon if it exists
+# Core functions
 kill_daemon() {
     if check_active_emacs; then
-        # Save all buffers
-        emacsclient -e '(save-some-buffers 1 nil)' 2>/dev/null || print_err "Could not save buffers."
-        emacsclient -e "(kill-emacs)" 2>/dev/null || print_err "Could not kill daemon."
-        return 0
+        emacsclient -e '(save-some-buffers 1 nil)' 2>/dev/null \
+            || print_err "Could not save buffers."
+        emacsclient -e '(kill-emacs)' 2>/dev/null \
+            || print_err "Could not kill daemon."
+
+        exit 1;
+    else
+        print_err "No daemon running."
     fi
-    print_err "No daemon running."
 }
 
-# Starts a daemon
 start_daemon() {
     if check_active_emacs; then
         print_err "A daemon is already running."
-        exit 1
+        return 1;
     fi
     print_msg "Starting daemon."
-    emacs --daemon
+    emacs --daemon || print_err "Could not start Emacs?..." && return 1;
 
-    print_err "Could not start Emacs?..."
     print_msg "Finished launching daemon."
-    exit 0
+    return 0;
 }
 
-options=""
+restart_daemon() {
+    kill_daemon && start_daemon
+    notify-send -a "mace" "Emacs daemon restarted!" # Improved notification
+}
 
-if ! options=$(getopt -o hsasrskgtdebpkcdsdsuducc --long help,start,active,restart,kill,gui,terminal,debug,pkill,capture,doomsync,doomsyncu,upgrade,doctor,gc -- "$@"); then
-    _help
-    exit 1
-fi
+# Doom command handling
+handle_doom() {
+    local doom_subcommand="$1"
+    shift # Remove the subcommand from arguments
 
-eval set -- "$options"
+    case "$doom_subcommand" in
+    s | sync) doom sync && exit 0 || exit 1 ;;
+    sb | sync-rebuild) doom sync --rebuild --aot && exit 0 || exit 1 ;;
+    u | upgrade) doom upgrade && exit 0 || exit 1 ;;
+    gc) doom gc && exit 0 || exit 1 ;;
+    d | doctor) doom doctor && exit 0 || exit 1 ;;
+    *) print_err "Cannot recognise the subcommand!"
+       _help;
+       exit 1;
+    esac
 
-while true; do
-    case "$1" in
-        -h | --help)
-            _help
-            exit 0
-            ;;
-        -s | --start)
-            start_daemon
-            exit 0
-            ;;
-        -a | --active)
-            check_active_emacs
-            exit 0
-            ;;
-        -sr | --restart)
-            restart_daemon
-            exit 0
-            ;;
-        -sk | --kill)
-            kill_daemon
-            exit 0
-            ;;
-        -g | --gui)
-            open_emacs_gui
-            exit 0
-            ;;
-        -t | --terminal)
-            open_emacs_terminal
-            exit 0
-            ;;
-        -deb | --debug)
-            emacs_debug_init
-            exit 0
-            ;;
-        -pk | --pkill)
-            pkill_emacs
-            exit 0
-            ;;
-        -c | --capture)
-            doom_capture
-            exit 0
-            ;;
-        -ds | --doomsync)
-            doom_sync
-            exit 0
-            ;;
-        -dsu | --doomsyncu)
-            doom_sync_update
-            exit 0
-            ;;
-        -du | --upgrade)
-            doom_upgrade
-            exit 0
-            ;;
-        -dd | --doctor)
-            doom_doctor
-            exit 0
-            ;;
-        -dc | --gc)
-            doom_gc
-            exit 0
-            ;;
-        --)
-            shift
-            break
-            ;;
-        *)
-            echo "Unknown option: $1"
-            _help
-            exit 1
-            ;;
+}
+
+# Option parsing
+while getopts "hSARKGTDpCd:suDdgc" opt; do
+
+    case "$opt" in
+    h)
+        _help
+        exit 0
+        ;;
+    S)
+        start_daemon
+        exit 0
+        ;;
+    A) check_active_emacs && exit 0 || exit 1 ;;
+    R)
+        restart_daemon
+        exit 0
+        ;;
+    K)
+        kill_daemon
+        exit 0
+        ;;
+    D)
+        emacs --debug-init
+        exit 0
+        ;;
+    p)
+        pkill -USR2 emacs
+        exit 0
+        ;;
+    G)
+        run_gui "$@" # Open in GUI mode with optional arguments
+        exit 0
+        ;;
+    T)
+        if [ $# -eq 1 ]; then                 # If no additional arguments
+            emacsclient -nw -a "" 2>/dev/null # Open in terminal
+        else
+            run_eclient "$@" # Run emacsclient with arguments
+        fi
+        exit 0
+        ;;
+    C) # Doom capture
+        emacsclient -e '(+org-capture/open-frame)' ||
+            notify-send "Something went wrong..."
+        exit 0
+        ;;
+    d) handle_doom "$OPTARG" ;; # Handle Doom subcommands directly
+    *)
+        _help
+        exit 1
+        ;;
     esac
 done
+shift $((OPTIND - 1)) # Remove parsed options
 
-# If no arguments are provided, show the help message
-_help
-exit 0
-
-args_to_add=" "
-arg_term=0
-arg_start_daemon=0
-cmd=""
-
-use_gui=true
-
-start_in_terminal() {
-    args_to_add="$args_to_add -t"
-}
-
-start_if_no_args_or_display() {
-    # if [ -n "$1" ]; then
-    #     return 1
-    # fi
-    # If no args or no display variable assume terminal start
-    if [ -z "$DISPLAY" ] || [ -n "${TMUX:-0}" ]; then
-        # If no emacs running, then start daemon up
-        if ! check_active_emacs; then
-            echo "Launching Emacs daemon"
-            emacsclient -nw -a="" 2>/dev/null
-            exit 0
-        fi
-        emacsclient -nc -a="" 2>/dev/null
-        exit 0
-    fi
-}
-
-# Automatically start emacs in terminal if conditions are true
-start_if_no_args_or_display "$@"
-
-# Helper functions
-
+# Helper functions (simplified)
 status_daemon() {
     if check_active_emacs; then
-        printf "[mace] Emacs daemon is ACTIVE.\n"
+        print_msg "Emacs daemon is ACTIVE."
     else
-        printf "[mace] Emacs daemon is not currently running.\n"
+        print_msg "Emacs daemon is not currently running."
     fi
-    exit 0
 }
 
-# Runs the emacs client
 run_eclient() {
-    args_to_add="-c -n --alternate-editor= "
-    cmd='emacsclient' "$args_to_add"
-    $cmd
+    emacsclient -c -n --alternate-editor='' "$@"
 }
 
 run_gui() {
-    cmd="emacsclient -nc  --alternate-editor=" " "
-
-    if [ -n "$1" ]; then
-        $cmd
-        exit 0
-    fi
-    # current_dir="$(pwd)"
-    # $cmd "$current_dir"
-    $cmd
-    exit 0
+    emacsclient -nc --alternate-editor= "$@"
 }
 
 # Will kill and then restart the emacs daemon.
@@ -282,8 +204,18 @@ doom_capture() {
     exit 0
 }
 
-# If there is no arguments, launch emacs in the terminal!
-if [ "$#" -lt 1 ]; then
-    emacsclient -nw -a="" 2>/dev/null
-    exit 0
-fi
+# Automatic start logic
+start_if_no_args_or_display() {
+    if [ $# -eq 0 ] || [ -z "$DISPLAY" ] || [ -n "${TMUX:-0}" ]; then
+        if ! check_active_emacs; then
+            echo "Launching Emacs daemon"
+            emacs --daemon || print_err "Failed to launch emacs --daemon..." && exit 1
+            emacsclient -nw -a "" 2>/dev/null
+            exit 0
+        fi
+        emacsclient -nc -a "" 2>/dev/null || print_err "Failed to launch emacsclient..." && exit 1
+        exit 0
+    fi
+}
+
+start_if_no_args_or_display "$@"
