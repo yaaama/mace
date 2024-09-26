@@ -189,7 +189,7 @@ run_eclient() {
 }
 
 run_gui() {
-    emacsclient -nc --alternate-editor= "$@"
+    emacsclient -nc --alternate-editor='' "$@"
 }
 
 # Will kill and then restart the emacs daemon.
@@ -210,10 +210,10 @@ start_if_no_args_or_display() {
         if ! check_active_emacs; then
             echo "Launching Emacs daemon"
             emacs --daemon || print_err "Failed to launch emacs --daemon..." && exit 1
-            emacsclient -nw -a "" 2>/dev/null
+            emacsclient -nw -a "" 2>/dev/null "$@"
             exit 0
         fi
-        emacsclient -nc -a "" 2>/dev/null || print_err "Failed to launch emacsclient..." && exit 1
+        emacsclient -nc -a "" "$@" 2>/dev/null || print_err "Failed to launch emacsclient..." && exit 1
         exit 0
     fi
 }
