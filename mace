@@ -36,9 +36,10 @@ mace [subcommand]
 it is frozen.
 
 -C, --capture   Open Doom capture mode in new frame.
--ds             'doom sync'.
--dsu            'doom sync -u'. Use this if you change an installed package recipe.
--du             'doom upgrade'.
+-ds             'doom sync --aot'.
+-dsu            'doom sync -u --aot'. Use this if you change an installed package recipe.
+-dsb            'doom sync -b --aot'. Rebuild all packages.
+-du             'doom upgrade --aot'.
 -dd             'doom doctor'.
 -dgc            'doom gc'.
 EOF
@@ -124,11 +125,13 @@ doom_capture() {
 # Doom command handling
 handle_doom() {
   local doom_subcommand="$1"
+  local proc_count=$(( $(nproc) - 2 ))
+  local proc_cmd="-j "+$proc_count
 
   case "$doom_subcommand" in
-  s | sync) doom sync ;;
-  sb | sync-rebuild) doom sync --rebuild --aot ;;
-  u | upgrade) doom upgrade ;;
+  s | sync) doom sync --aot "$proc_cmd" ;;
+  sb | sync-rebuild) doom sync --rebuild --aot "$proc_cmd" ;;
+  u | upgrade) doom upgrade --aot "$proc_cmd" ;;
   gc) doom gc ;;
   d | doctor) doom doctor ;;
   *)
@@ -205,7 +208,7 @@ shift $((OPTIND - 1)) # Remove parsed options
 if [ "$#" -eq 0 ] || [ -z "$DISPLAY" ] || [ -n "${TMUX:-0}" ]; then
   if ! check_active_emacs; then
     echo "No Emacs daemon, launching one now..."
-    start_daemon
+    start_daemon && run_eclient
     exit 0
   fi
   run_eclient
