@@ -126,12 +126,12 @@ doom_capture() {
 handle_doom() {
   local doom_subcommand="$1"
   local proc_count=$(( $(nproc) - 2 ))
-  local proc_cmd="-j "+$proc_count
+  local proc_cmd="-j $proc_count"
 
   case "$doom_subcommand" in
-  s | sync) doom sync --aot "$proc_cmd" ;;
-  sb | sync-rebuild) doom sync --rebuild --aot "$proc_cmd" ;;
-  u | upgrade) doom upgrade --aot "$proc_cmd" ;;
+  s | sync) doom sync --aot $proc_cmd ;;
+  sb | sync-rebuild) doom sync --rebuild --aot $proc_cmd ;;
+  u | upgrade) doom upgrade --aot $proc_cmd ;;
   gc) doom gc ;;
   d | doctor) doom doctor ;;
   *)
