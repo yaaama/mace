@@ -18,6 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 set -euox pipefail
+set -euo pipefail
 
 # Help message
 _help() {
@@ -206,11 +207,12 @@ shift $((OPTIND - 1)) # Remove parsed options
 
 # Automatic start logic
 if [ "$#" -eq 0 ] || [ -z "$DISPLAY" ] || [ -n "${TMUX:-0}" ]; then
-  if ! check_active_emacs; then
-    echo "No Emacs daemon, launching one now..."
-    start_daemon && run_eclient
+    if ! check_active_emacs; then
+        echo "No Emacs daemon, launching one now..."
+        emacs
+        # start_daemon && run_eclient
+        exit 0
+    fi
+    run_eclient
     exit 0
-  fi
-  run_eclient
-  exit 0
 fi
