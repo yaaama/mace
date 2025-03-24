@@ -21,7 +21,7 @@ set -euo pipefail
 
 # Help message
 _help() {
-    cat <<EOF
+  cat <<EOF
 mace [subcommand]
 
 -h, --help      Show this help message.
@@ -49,169 +49,177 @@ EOF
 
 # Error and message printing
 print_err() {
-    printf "mace: [error]: %s\n" "$1" >&2 # Print errors to stderr
+  printf "mace: [error]: %s\n" "$1" >&2 # Print errors to stderr
 }
 
 print_msg() {
-    printf "mace: %s\n" "$1"
+  printf "mace: %s\n" "$1"
 }
 
 # Dependency checking
 check_depends() {
-    for cmd in emacs doom; do
-        if ! command -v "$cmd" &>/dev/null; then
-            print_err "$cmd does not exist in your path."
-            exit 1
-        fi
-    done
+  for cmd in emacs doom; do
+    if ! command -v "$cmd" &>/dev/null; then
+      print_err "$cmd does not exist in your path."
+      exit 1
+    fi
+  done
 }
 
 # Emacs status checking
 check_active_emacs() {
-    pidof -q emacs &>/dev/null
+  pidof -q emacs &>/dev/null
 }
 
 # Core functions
 kill_daemon() {
-    if check_active_emacs; then
-        emacsclient -e '(save-some-buffers 1 nil)' 2>/dev/null || print_err "Could not save buffers."
-        emacsclient -e '(kill-emacs)' 2>/dev/null || print_err "Could not kill daemon."
-    else
-        print_err "No daemon running."
-    fi
+  if check_active_emacs; then
+    emacsclient -e '(save-some-buffers 1 nil)' 2>/dev/null || print_err "Could not save buffers."
+    emacsclient -e '(kill-emacs)' 2>/dev/null || print_err "Could not kill daemon."
+  else
+    print_err "No daemon running."
+  fi
 }
 
 start_daemon() {
-    if check_active_emacs; then
-        print_err "A daemon is already running."
-        return 1
-    fi
-    print_msg "Starting daemon."
-    emacs --daemon || { print_err "Could not start Emacs?..." && return 1; }
+  if check_active_emacs; then
+    print_err "A daemon is already running."
+    return 1
+  fi
+  print_msg "Starting daemon."
+  emacs --daemon || { print_err "Could not start Emacs?..." && return 1; }
 
-    print_msg "Finished launching daemon."
-    run_eclient "$@"
-    return 0
+  print_msg "Finished launching daemon."
+  run_eclient "$@"
+  return 0
 }
 
 restart_daemon() {
-    kill_daemon
-    start_daemon "$@"
-    notify-send -a "mace" "Emacs daemon restarted!"
+  kill_daemon
+  start_daemon "$@"
+  notify-send -a "mace" "Emacs daemon restarted!"
 }
 
 # Helper functions (simplified)
 status_daemon() {
-    if check_active_emacs; then
-        print_msg "Emacs daemon is ACTIVE."
-    else
-        print_msg "Emacs daemon is not currently running."
-    fi
+  if check_active_emacs; then
+    print_msg "Emacs daemon is ACTIVE."
+  else
+    print_msg "Emacs daemon is not currently running."
+  fi
 }
 
 run_eclient() {
-    emacsclient -c -n --alternate-editor='' "$@"
+  emacsclient -c -n --alternate-editor='' "$@"
 }
 
 run_gui() {
-    emacsclient -nc --alternate-editor='' "$@"
+  emacsclient -nc --alternate-editor='' "$@"
 }
 
 doom_capture() {
-    org-capture || notify-send "Something went wrong..."
-    exit 0
+  org-capture || notify-send "Something went wrong..."
+  exit 0
 }
 
 # Doom command handling
 handle_doom() {
-    local doom_subcommand="$1"
-    local proc_count=$(($(nproc) - 2))
-    local proc_cmd="-j $proc_count"
+  local doom_subcommand="$1"
+  local proc_count=$(($(nproc) - 2))
+  local proc_cmd="-j $proc_count"
+  local gc_cmd="--gc"
 
-    case "$doom_subcommand" in
-    s | sync) doom sync --aot $proc_cmd ;;
-    sb | sync-rebuild) doom sync --rebuild --aot $proc_cmd ;;
-    u | upgrade) doom upgrade --aot $proc_cmd ;;
-    gc) doom gc ;;
-    d | doctor) doom doctor ;;
-    *)
-        print_err "Cannot recognise the subcommand!"
-        _help
-        exit 1
-        ;;
-    esac
+  case "$doom_subcommand" in
+  s | sync)  eval "doom sync --aot $proc_cmd $gc_cmd" ;;
+  su) eval "doom sync -u --aot $proc_cmd $gc_cmd" ;;
+  sb | sync-rebuild) eval "doom sync --rebuild --aot $proc_cmd $gc_cmd" ;;
+  u | upgrade) eval "doom upgrade --aot $proc_cmd" ;;
+  gc) doom gc ;;
+  d | doctor) doom doctor ;;
+  *)
+    print_err "Cannot recognise the subcommand!"
+    _help
+    exit 1
+    ;;
+  esac
 
 }
 
 # Option parsing
 while getopts "hSARKGTDpCd:" opt; do
 
-    case "$opt" in
-    h)
-        _help
-        exit 0
-        ;;
-    S)
-        start_daemon
-        exit 0
-        ;;
-    A)
-        if check_active_emacs; then
-            print_msg "Emacs daemon is ACTIVE."
-            exit 0
-        else
-            print_msg "Emacs daemon is not currently running."
-            exit 1
-        fi
-        ;;
-    R)
-        restart_daemon "$@"
-        exit 0
-        ;;
-    K)
-        kill_daemon
-        exit 0
-        ;;
-    D)
-        emacs --debug-init
-        exit 0
-        ;;
-    p)
-        pkill -USR2 emacs
-        exit 0
-        ;;
-    G)
-        run_gui "$@" # Open in GUI mode with optional arguments
-        exit 0
-        ;;
-    T)
-        emacsclient -t -nw -a "" "$@" 2>/dev/null # Open in terminal
-        exit 0
-        ;;
-    C) # Doom capture
-        emacsclient -e '(+org-capture/open-frame)' || notify-send "Something went wrong..."
-        exit 0
-        ;;
-    d) # Handle Doom subcommands directly
-        handle_doom "$OPTARG"
-        exit 0
-        ;;
-    *)
-        _help
-        exit 1
-        ;;
-    esac
+  case "$opt" in
+  h)
+    _help
+    exit 0
+    ;;
+  S)
+    start_daemon
+    exit 0
+    ;;
+  A)
+    if check_active_emacs; then
+      print_msg "Emacs daemon is ACTIVE."
+      exit 0
+    else
+      print_msg "Emacs daemon is not currently running."
+      exit 1
+    fi
+    ;;
+  R)
+    restart_daemon "$@"
+    exit 0
+    ;;
+  K)
+    kill_daemon
+    exit 0
+    ;;
+  D)
+    emacs --debug-init
+    exit 0
+    ;;
+  p)
+    pkill -USR2 emacs
+    exit 0
+    ;;
+  G)
+    run_gui "$@" # Open in GUI mode with optional arguments
+    exit 0
+    ;;
+  T)
+    notify-send "We do not currently handle terminal emacs properly."
+
+    # if [ "$#" -eq 0 ]; then
+    # If no files
+    # emacsclient -t -a emacs
+    # else
+    # exec emacsclient -t -a=emacs "$@" 2>/dev/null
+    # fi
+    ;;
+  C) # Doom capture
+    emacsclient -e '(+org-capture/open-frame)' -a 'emacs' >/dev/null || notify-send "Something went wrong opening capture window..."
+    exit 0
+    ;;
+  d) # Handle Doom subcommands directly
+    handle_doom "$OPTARG"
+    exit 0
+    ;;
+  *)
+    _help
+    exit 1
+    ;;
+  esac
 done
 shift $((OPTIND - 1)) # Remove parsed options
 
 # Automatic start logic
 if [ "$#" -eq 0 ] || [ -z "$DISPLAY" ] || [ -n "${TMUX:-0}" ]; then
-    if ! check_active_emacs; then
-        echo "No Emacs daemon, launching one now..."
-        emacs
-        # start_daemon && run_eclient
-        exit 0
-    fi
-    run_eclient
+  if ! check_active_emacs; then
+    echo "No Emacs daemon, launching one now..."
+    emacs
+    # start_daemon && run_eclient
     exit 0
+  fi
+  run_eclient
+  exit 0
 fi
