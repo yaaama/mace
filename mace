@@ -19,6 +19,8 @@
 
 set -euo pipefail
 
+DEPS=("doom" "emacs")
+
 # Help message
 _help() {
   cat <<EOF
@@ -58,7 +60,7 @@ print_msg() {
 
 # Dependency checking
 check_depends() {
-  for cmd in emacs doom; do
+  for cmd in $deps; do
     if ! command -v "$cmd" &>/dev/null; then
       print_err "$cmd does not exist in your path."
       exit 1
